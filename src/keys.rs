@@ -32,6 +32,17 @@ pub enum XmlSecKeyFormat
     CertDer  = bindings::xmlSecKeyDataFormat_xmlSecKeyDataFormatCertDer,
 }
 
+#[cfg(xmlsec_dynamic)]
+use bindings as backend;
+#[cfg(xmlsec_static)]
+mod backend {
+    pub use super::bindings::{
+        xmlSecOpenSSLAppKeyLoad as xmlSecCryptoAppKeyLoad,
+        xmlSecOpenSSLAppKeyLoadMemory as xmlSecCryptoAppKeyLoadMemory,
+        xmlSecOpenSSLAppKeyCertLoad as xmlSecCryptoAppKeyCertLoad,
+        xmlSecOpenSSLAppKeyCertLoadMemory as xmlSecCryptoAppKeyCertLoadMemory,
+    };
+}
 
 /// Key with which we sign/verify signatures or encrypt data. Used by [`XmlSecSignatureContext`][sigctx].
 ///
@@ -58,7 +69,7 @@ impl XmlSecKey
             .unwrap_or(null());
 
         // Load key from file
-        let key = unsafe { bindings::xmlSecOpenSSLAppKeyLoad(
+        let key = unsafe { backend::xmlSecCryptoAppKeyLoad(
             cpath.as_ptr(),
             format as u32,
             cpasswd_ptr,
@@ -85,7 +96,7 @@ impl XmlSecKey
             .unwrap_or(null());
 
         // Load key from buffer
-        let key = unsafe { bindings::xmlSecOpenSSLAppKeyLoadMemory(
+        let key = unsafe { backend::xmlSecCryptoAppKeyLoadMemory(
             buffer.as_ptr(),
             buffer.len() as u32,
             format as u32,
@@ -106,7 +117,7 @@ impl XmlSecKey
     {
         let cpath = CString::new(path).unwrap();
 
-        let rc = unsafe { bindings::xmlSecOpenSSLAppKeyCertLoad(self.0, cpath.as_ptr(), format as u32) };
+        let rc = unsafe { backend::xmlSecCryptoAppKeyCertLoad(self.0, cpath.as_ptr(), format as u32) };
 
         if rc != 0 {
             return Err(XmlSecError::CertLoadError);
@@ -119,7 +130,7 @@ impl XmlSecKey
     pub fn load_cert_from_memory(&self, buff: &[u8], format: XmlSecKeyFormat) -> XmlSecResult<()>
     {
         let rc = unsafe {
-            bindings::xmlSecOpenSSLAppKeyCertLoadMemory(
+            backend::xmlSecCryptoAppKeyCertLoadMemory(
                 self.0,
                 buff.as_ptr(),
                 buff.len() as u32,

@@ -5,6 +5,7 @@ use crate::bindings;
 
 use crate::lazy_static;
 
+use std::convert::TryInto;
 use std::ptr::null;
 use std::sync::Mutex;
 
@@ -68,6 +69,19 @@ fn init_xmlsec()
     if rc < 0 {
         panic!("XmlSec failed initialization");
     }
+
+    let rc = unsafe {
+        bindings::xmlSecCheckVersionExt(
+            bindings::XMLSEC_VERSION_MAJOR.try_into().unwrap(),
+            bindings::XMLSEC_VERSION_MINOR.try_into().unwrap(),
+            bindings::XMLSEC_VERSION_SUBMINOR.try_into().unwrap(),
+            bindings::xmlSecCheckVersionMode_xmlSecCheckVersionABICompatible,
+        )
+    };
+
+    if rc < 0 {
+        panic!("XmlSec version check failed");
+    }
 }
 
 
@@ -76,17 +90,20 @@ fn init_xmlsec()
 /// "nss", etc.) to load corresponding xmlsec-crypto library.
 fn init_crypto_app()
 {
-    // if bindings::XMLSEC_CRYPTO_DYNAMIC_LOADING
-    // {
-    //     let rc = unsafe { bindings::xmlSecCryptoDLLoadLibrary(0) };
+    #[cfg(xmlsec_dynamic)]
+    {
+        let rc = unsafe { bindings::xmlSecCryptoDLLoadLibrary(null()) };
 
-    //     if rc < 0 {
-    //         panic!("XmlSec failed while loading default crypto backend. \
-    //                 Make sure that you have it installed and check shread libraries path");
-    //     }
-    // }
+        if rc < 0 {
+            panic!("XmlSec failed while loading default crypto backend. \
+                    Make sure that you have it installed and check shread libraries path");
+        }
+    }
 
+    #[cfg(xmlsec_static)]
     let rc = unsafe { bindings::xmlSecOpenSSLAppInit(null()) };
+    #[cfg(xmlsec_dynamic)]
+    let rc = unsafe { bindings::xmlSecCryptoAppInit(null()) };
 
     if rc < 0 {
         panic!("XmlSec failed to init crypto backend")
@@ -97,7 +114,10 @@ fn init_crypto_app()
 /// Init xmlsec-crypto library
 fn init_crypto()
 {
+    #[cfg(xmlsec_static)]
     let rc = unsafe { bindings::xmlSecOpenSSLInit() };
+    #[cfg(xmlsec_dynamic)]
+    let rc = unsafe { bindings::xmlSecCryptoInit() };
 
     if rc < 0 {
         panic!("XmlSec failed while loading default crypto backend. \
@@ -109,14 +129,20 @@ fn init_crypto()
 /// Shutdown xmlsec-crypto library
 fn cleanup_crypto()
 {
+    #[cfg(xmlsec_static)]
     unsafe { bindings::xmlSecOpenSSLShutdown() };
+    #[cfg(xmlsec_dynamic)]
+    unsafe { bindings::xmlSecCryptoShutdown() };
 }
 
 
 /// Shutdown crypto library
 fn cleanup_crypto_app()
 {
+    #[cfg(xmlsec_static)]
     unsafe { bindings::xmlSecOpenSSLAppShutdown() };
+    #[cfg(xmlsec_dynamic)]
+    unsafe { bindings::xmlSecCryptoAppShutdown() };
 }
 
 

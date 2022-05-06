@@ -24,6 +24,14 @@ fn main()
     let path_out      = PathBuf::from(env::var("OUT_DIR").unwrap());
     let path_bindings = path_out.join(BINDINGS);
 
+    // Determine which API/ABI is available on this platform:
+    let cflags = fetch_xmlsec_config_flags();
+    if cflags.iter().any(|s| s == "-DXMLSEC_CRYPTO_DYNAMIC_LOADING=1") {
+        println!("cargo:rustc-cfg=xmlsec_dynamic");
+    } else {
+        println!("cargo:rustc-cfg=xmlsec_static");
+    }
+
     if !path_bindings.exists()
     {
         PkgConfig::new()
@@ -32,7 +40,7 @@ fn main()
 
         let bindbuild = BindgenBuilder::default()
             .header("bindings.h")
-            .clang_args(fetch_xmlsec_config_flags())
+            .clang_args(cflags)
             .clang_args(fetch_xmlsec_config_libs())
             .layout_tests(true)
             .rustfmt_bindings(true)

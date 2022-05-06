@@ -13,5 +13,14 @@
 // mod gnutls;
 // pub use gnutls::XmlSecSignatureMethod;
 
+#[cfg(xmlsec_static)]
 mod openssl;
-pub use openssl::XmlSecSignatureMethod;
+#[cfg(xmlsec_static)]
+use openssl as backend;
+
+#[cfg(xmlsec_dynamic)]
+mod dynamic;
+#[cfg(xmlsec_dynamic)]
+use dynamic as backend;
+
+pub use backend::XmlSecSignatureMethod;
